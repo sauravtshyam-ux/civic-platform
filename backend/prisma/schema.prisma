@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  zipCode       String?
+  district      String?
+  state         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  votes         Vote[]
+  savedBills    SavedBill[]
+  amendments    Amendment[]
+  amendmentVotes AmendmentVote[]
+  notifications Notification[]
+  
+  @@map("users")
+}
+
+model Bill {
+  id                String      @id @default(uuid())
+  externalId        String      @unique // ID from ProPublica or OpenStates
+  title             String
+  summary           String      @db.Text
+  aiSummary         String?     @db.Text
+  status            String
+  introducedDate    DateTime?
+  lastActionDate    DateTime?
+  sponsor           String?
+  level             String      // "federal" or "state"
+  state             String?     // For state bills
+  chamber           String?     // "house" or "senate"
+  billNumber        String
+  fullTextUrl       String?
+  upvotes           Int         @default(0)
+  downvotes         Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  votes             Vote[]
+  savedBy           SavedBill[]
+  amendments        Amendment[]
+  
+  @@map("bills")
+  @@index([level, state])
+  @@index([status])
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  userId    String
+  billId    String
+  voteType  String   // "upvote" or "downvote"
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bill      Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, billId])
+  @@map("votes")
+}
+
+model SavedBill {
+  id        String   @id @default(uuid())
+  userId    String
+  billId    String
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bill      Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, billId])
+  @@map("saved_bills")
+}
+
+model Amendment {
+  id              String          @id @default(uuid())
+  billId          String
+  userId          String
+  content         String          @db.Text
+  cleanedContent  String?         @db.Text
+  upvotes         Int             @default(0)
+  downvotes       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  bill            Bill            @relation(fields: [billId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes           AmendmentVote[]
+  
+  @@map("amendments")
+  @@index([billId])
+}
+
+model AmendmentVote {
+  id          String    @id @default(uuid())
+  userId      String
+  amendmentId String
+  voteType    String    // "upvote" or "downvote"
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amendment   Amendment @relation(fields: [amendmentId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, amendmentId])
+  @@map("amendment_votes")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // "new_bill", "bill_update", "amendment_popular", etc.
+  title     String
+  message   String   @db.Text
+  data      Json?    // Additional data (billId, amendmentId, etc.)
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+  @@index([userId, read])
+}
