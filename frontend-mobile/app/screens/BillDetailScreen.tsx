@@ -16,13 +16,25 @@ import { colors, spacing, borderRadius, fontSize } from '../theme/colors';
 type BillDetailRouteProp = RouteProp<RootStackParamList, 'BillDetail'>;
 type BillDetailNavigationProp = StackNavigationProp<RootStackParamList, 'BillDetail'>;
 
+type BillWithAmendments = Bill & { amendments: Amendment[] };
+
 export const BillDetailScreen: React.FC = () => {
   const route = useRoute<BillDetailRouteProp>();
   const navigation = useNavigation<BillDetailNavigationProp>();
-  const { billId } = route.params;
+  const { billId, bill: passedBill } = route.params as {
+    billId: string;
+    bill?: Bill;
+  };
 
-  const [bill, setBill] = useState<(Bill & { amendments: Amendment[] }) | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialBill: BillWithAmendments | null = passedBill
+    ? {
+        ...passedBill,
+        amendments: [],
+      }
+    : null;
+
+  const [bill, setBill] = useState<BillWithAmendments | null>(initialBill);
+  const [loading, setLoading] = useState(!initialBill);
   const [userVote, setUserVote] = useState<'upvote' | 'downvote' | null>(null);
 
   useEffect(() => {
@@ -32,9 +44,15 @@ export const BillDetailScreen: React.FC = () => {
   const fetchBillDetail = async () => {
     try {
       const response = await billsApi.getBillById(billId);
-      setBill(response.data.bill);
+      const liveBill = response.data?.bill;
+
+      if (liveBill) {
+        setBill(liveBill);
+        console.log('Loaded live bill detail from API');
+      }
     } catch (error) {
       console.error('Failed to fetch bill:', error);
+      console.log('Using passed-in bill data instead');
     } finally {
       setLoading(false);
     }
@@ -51,13 +69,21 @@ export const BillDetailScreen: React.FC = () => {
   };
 
   const handleAmendPress = () => {
-    navigation.navigate('AmendBill', { billId });
+    navigation.navigate('AmendBill', { billId } as never);
   };
 
-  if (loading || !bill) {
+  if (loading && !bill) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!bill) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.emptyText}>Bill not found.</Text>
       </View>
     );
   }
@@ -66,19 +92,31 @@ export const BillDetailScreen: React.FC = () => {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={[styles.badge, { backgroundColor: bill.level === 'federal' ? colors.primary : colors.secondary }]}>
-            <Text style={styles.badgeText}>{bill.level === 'federal' ? '🏛️ Federal' : `📍 ${bill.state}`}</Text>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor:
+                  bill.level === 'federal' ? colors.primary : colors.secondary,
+              },
+            ]}
+          >
+            <Text style={styles.badgeText}>
+              {bill.level === 'federal' ? '🏛️ Federal' : `📍 ${bill.state}`}
+            </Text>
           </View>
           <Text style={styles.billNumber}>{bill.billNumber}</Text>
         </View>
 
         <Text style={styles.title}>{bill.title}</Text>
-        
+
         <View style={styles.metaContainer}>
           <Text style={styles.metaText}>Sponsor: {bill.sponsor || 'Unknown'}</Text>
           <Text style={styles.metaText}>Status: {bill.status}</Text>
           {bill.introducedDate && (
-            <Text style={styles.metaText}>Introduced: {new Date(bill.introducedDate).toLocaleDateString()}</Text>
+            <Text style={styles.metaText}>
+              Introduced: {new Date(bill.introducedDate).toLocaleDateString()}
+            </Text>
           )}
         </View>
 
@@ -107,8 +145,11 @@ export const BillDetailScreen: React.FC = () => {
         </TouchableOpacity>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Community Amendments ({bill.amendments.length})</Text>
-          {bill.amendments.length === 0 ? (
+          <Text style={styles.sectionTitle}>
+            Community Amendments ({bill.amendments?.length ?? 0})
+          </Text>
+
+          {!bill.amendments || bill.amendments.length === 0 ? (
             <Text style={styles.emptyText}>No amendments yet. Be the first!</Text>
           ) : (
             bill.amendments.map((amendment) => (

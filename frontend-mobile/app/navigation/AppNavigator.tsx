@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -27,7 +28,8 @@ const MainTabs = () => {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Feed',
-          tabBarIcon: ({ color }) => <span style={{ fontSize: 24 }}>📜</span>,
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24, color }}>📜</Text>,
+
         }}
       />
       <Tab.Screen
@@ -35,7 +37,8 @@ const MainTabs = () => {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => <span style={{ fontSize: 24 }}>👤</span>,
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24, color }}>👤</Text>,
+
         }}
       />
     </Tab.Navigator>

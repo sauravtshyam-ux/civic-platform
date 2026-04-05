@@ -2,6 +2,8 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../api/auth';
 import { User } from '../types';
+import { DEV_BYPASS_AUTH, DEV_USER } from '../config/dev';
+
 
 interface AuthContextType {
   user: User | null;
@@ -27,8 +29,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStoredAuth();
-  }, []);
+  if (DEV_BYPASS_AUTH) {
+    AsyncStorage.removeItem('authToken');
+
+    // ✅ Bypass auth for UI work
+    setUser(DEV_USER as unknown as User);
+    setToken('dev-token');
+    setLoading(false);
+    return;
+  }
+
+  loadStoredAuth();
+}, []);
+
 
   const loadStoredAuth = async () => {
     try {

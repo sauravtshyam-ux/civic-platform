@@ -9,24 +9,27 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+
 import { BillCard } from '../components/BillCard';
 import { billsApi } from '../api/bills';
 import { Bill, RootStackParamList } from '../types';
 import { colors, spacing, fontSize } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { demoBills } from '../data/demoBills';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Main'>;
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user } = useAuth();
+
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetchBills();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchBills = async () => {
@@ -37,9 +40,14 @@ export const HomeScreen: React.FC = () => {
         page: 1,
         limit: 20,
       });
-      setBills(response.data.bills);
+
+      const liveBills = response.data?.bills ?? [];
+      setBills(liveBills);
+      console.log('Loaded live bills from API');
     } catch (error) {
-      console.error('Failed to fetch bills:', error);
+      console.error('Failed to fetch bills (using demo data):', error);
+      setBills(demoBills as Bill[]);
+      console.log('Using demo fallback bills');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -48,12 +56,14 @@ export const HomeScreen: React.FC = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    setPage(1);
     fetchBills();
   };
 
-  const handleBillPress = (billId: string) => {
-    navigation.navigate('BillDetail', { billId });
+  const handleBillPress = (bill: Bill) => {
+    navigation.navigate('BillDetail', {
+      billId: bill.id,
+      bill,
+    } as never);
   };
 
   if (loading) {
@@ -79,7 +89,7 @@ export const HomeScreen: React.FC = () => {
         data={bills}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <BillCard bill={item} onPress={() => handleBillPress(item.id)} />
+          <BillCard bill={item} onPress={() => handleBillPress(item)} />
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={
